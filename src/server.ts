@@ -4,6 +4,7 @@ import cors from 'cors';
 
 import healthRouter from './routes/health';
 import usersRouter from './routes/users';
+import accountsRouter from './routes/accounts';
 
 const app = express();
 
@@ -16,6 +17,7 @@ app.get('/', (_req, res) => {
 
 app.use('/api/health', healthRouter);
 app.use('/api/users', usersRouter);
+app.use('/api/accounts', accountsRouter);
 
 const PORT = Number(process.env.PORT) || 3000;
 app.listen(PORT, () => {
