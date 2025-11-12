@@ -12,6 +12,7 @@ import plannedRouter from './routes/planned';
 import savingsRouter from './routes/savings';
 import goalsRouter from './routes/goals';
 import summaryRouter from './routes/summary';
+import exportRouter from './routes/export';
 
 const app = express();
 
@@ -32,6 +33,8 @@ app.use('/api/planned', plannedRouter);
 app.use('/api/savings', savingsRouter);
 app.use('/api/savings/goals', goalsRouter);
 app.use('/api/summary', summaryRouter);
+app.use('/api/export', exportRouter);
+app.use('/api/import', exportRouter);
 
 const PORT = Number(process.env.PORT) || 3000;
 app.listen(PORT, () => {
