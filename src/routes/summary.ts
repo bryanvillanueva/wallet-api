@@ -105,4 +105,69 @@ router.get('/pay-period/:id', async (req: Request, res: Response) => {
   }
 });
 
+// GET /api/summary/savings/user/:userId - Get savings consolidation for a user
+router.get('/savings/user/:userId', async (req: Request, res: Response) => {
+  try {
+    const userId = parseInt(req.params.userId || '0');
+
+    if (isNaN(userId) || userId <= 0) {
+      return res.status(400).json({
+        error: 'Invalid user ID'
+      });
+    }
+
+    // Get total deposits (positive amounts)
+    const [depositsRows] = await db.query<RowDataPacket[]>(
+      `SELECT COALESCE(SUM(amount_cents), 0) AS total
+       FROM saving_entries
+       WHERE user_id = ? AND amount_cents > 0`,
+      [userId]
+    );
+
+    const total_saved_cents = Number(depositsRows[0]?.total || 0);
+
+    // Get total withdrawals (negative amounts, return as positive)
+    const [withdrawalsRows] = await db.query<RowDataPacket[]>(
+      `SELECT COALESCE(SUM(ABS(amount_cents)), 0) AS total
+       FROM saving_entries
+       WHERE user_id = ? AND amount_cents < 0`,
+      [userId]
+    );
+
+    const total_withdrawn_cents = Number(withdrawalsRows[0]?.total || 0);
+
+    // Calculate net savings
+    const net_saved_cents = total_saved_cents - total_withdrawn_cents;
+
+    // Get breakdown by account
+    const [breakdownRows] = await db.query<RowDataPacket[]>(
+      `SELECT
+        a.type AS account_type,
+        a.name AS account_name,
+        COALESCE(SUM(CASE WHEN se.amount_cents > 0 THEN se.amount_cents ELSE 0 END), 0) AS deposits,
+        COALESCE(SUM(CASE WHEN se.amount_cents < 0 THEN ABS(se.amount_cents) ELSE 0 END), 0) AS withdrawals,
+        COALESCE(SUM(se.amount_cents), 0) AS net
+      FROM saving_entries se
+      JOIN accounts a ON se.account_id = a.id
+      WHERE se.user_id = ?
+      GROUP BY a.id, a.type, a.name
+      ORDER BY a.type, a.name`,
+      [userId]
+    );
+
+    return res.json({
+      total_saved_cents,
+      total_withdrawn_cents,
+      net_saved_cents,
+      breakdown: breakdownRows
+    });
+
+  } catch (error) {
+    console.error('Error fetching savings summary:', error);
+    return res.status(500).json({
+      error: 'Internal server error'
+    });
+  }
+});
+
 export default router;
